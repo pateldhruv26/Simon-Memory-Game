@@ -1,0 +1,198 @@
+#include <LiquidCrystal.h>
+LiquidCrystal lcd(0, 1, 6, 7, 12, 13);
+
+int buttons[4] = { 2, 3, 4, 5 };
+int leds[4] = { 8, 9, 10, 11 };
+
+boolean button_state[4] = { 0, 0, 0, 0 };
+
+#define buzzer A0
+
+#define levelsInGame 10
+
+int bt_simonSaid[100];  
+int led_simonSaid[100]; 
+
+boolean lost;
+int ip_number, level, stage = 0;
+
+void setup() {
+
+  lcd.begin(16, 2);
+  for (int i = 0; i <= 3; i++) {
+    pinMode(buttons[i], INPUT_PULLUP);  
+    pinMode(leds[i], OUTPUT);          
+  }
+
+  pinMode(buzzer, OUTPUT);
+
+  lcd.setCursor(0, 0);
+  lcd.print("   Welcome To   ");
+  lcd.setCursor(0, 1);
+  lcd.print("> Memory  Game <");
+  delay(800);  
+  lcd.clear();
+
+}
+
+void loop() {  // the loop function runs over and over again forever
+
+  switch (stage) {
+    case 0:
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("Press Red Button");
+      lcd.setCursor(0, 1);
+      lcd.print("To Start");
+      button_state[0] = digitalRead(buttons[0]);
+      while (button_state[0] == HIGH) {
+        button_state[0] = digitalRead(buttons[0]);
+      }
+      level = 1, stage = 1, ip_number = 1;
+      delay(1000);
+      break;
+
+    case 1:
+      lcd.clear();
+
+      lcd.setCursor(0, 0);
+      lcd.print("Level: ");
+      lcd.setCursor(7, 0);
+      lcd.print(level);
+  
+      lcd.setCursor(0, 1);
+      lcd.print(" -- Memorize -- ");
+      delay(100);
+
+      for (int i = 1; i <= level; i++) {
+        led_simonSaid[i] = random(8,12);
+        digitalWrite(led_simonSaid[i], HIGH);  
+        playBuzzer(led_simonSaid[i] - 7);
+        digitalWrite(led_simonSaid[i], LOW);
+        delay(400);
+      }
+      delay(500);
+      stage = 2;
+      break;
+
+    case 2:
+      stage = 3;
+      lcd.setCursor(0, 1);
+      lcd.print("   -- Play --   ");
+      break;
+
+    case 3:
+      for (int i = 0; i <= 3; i++) {
+        button_state[i] = digitalRead(buttons[i]);
+        if (button_state[i] == LOW) {
+          bt_simonSaid[ip_number] = leds[i];
+          digitalWrite(leds[i], HIGH);
+          playBuzzer(i + 1);  
+          while (button_state[i] == LOW) {
+            button_state[i] = digitalRead(buttons[i]);
+          }
+          delay(50);
+          digitalWrite(leds[i], LOW);
+          ip_number++;
+          if (ip_number - 1 == level) {
+            ip_number = 1;
+            stage = 4;
+            break;
+          }
+        }
+      }
+      delay(10);
+      break;
+
+    case 4:
+      lcd.clear();
+      lcd.setCursor(0, 1);
+      lcd.print("  Verification  ");
+      delay(1000);
+      for (int i = 1; i <= level; i++) {
+        if (led_simonSaid[i] != bt_simonSaid[i]) {
+          lost = 1;
+          break;
+        }
+      }
+      if (lost == 1) stage = 5;
+      else stage = 6;
+      break;
+
+    case 5:
+      lcd.clear();
+      lcd.setCursor(0, 1);
+      lcd.print(" !! You Lost !! ");
+      tone(buzzer, 350);
+      for (int i = 0; i <= 3; i++) {
+        digitalWrite(leds[i], HIGH);
+        playBuzzer(i + 1);
+        delay(1);
+        digitalWrite(leds[i], LOW);
+      }
+      //delay(1000);
+      lcd.setCursor(0, 1);
+      lcd.print("!! GAME  OVER !!");
+      // delay(1000);
+      
+      for (int i = 0; i <= 3; i++) {
+        digitalWrite(leds[i], HIGH);
+      }
+      playBuzzer(1);
+      delay(1000);
+      for (int i = 0; i <= 3; i++) {
+        digitalWrite(leds[i], LOW);
+      }
+      level = 1, stage = 0, lost = 0;
+      break;
+
+    case 6:
+      lcd.clear();
+      lcd.setCursor(0, 1);
+      lcd.print(" ** You  Win ** ");
+      for (int i = 0; i <= 1; i++) {
+        playBuzzer(i + 1);
+      }
+      delay(1000);
+      if (level == levelsInGame) {
+        lcd.setCursor(0, 0);
+        lcd.print("Congratulation");
+        lcd.setCursor(0, 1);
+        lcd.print(" Level Complete");
+        for (int i = 0;i<=5;i++){
+          if(i%2==0){
+            digitalWrite(leds[0],HIGH);
+            digitalWrite(leds[2],HIGH);
+            playBuzzer(2);
+            digitalWrite(leds[0],LOW);
+            digitalWrite(leds[2],LOW);
+            // delay(1000);
+          }else{
+            digitalWrite(leds[1],HIGH);
+            digitalWrite(leds[3],HIGH);
+            playBuzzer(3);
+            digitalWrite(leds[1],LOW);
+            digitalWrite(leds[3],LOW);
+            // delay(1000);
+          }
+        }
+        delay(2500);
+        lcd.clear();
+        level = 1;
+        stage = 0;
+      } else {
+        if (level < levelsInGame) level++;
+        stage = 1;
+      }
+      break;
+
+    default:
+      break;
+  }
+}
+
+void playBuzzer(int x) {
+  tone(buzzer, 650 + (x * 100));
+  delay(200);
+  noTone(buzzer);
+}
